@@ -60,6 +60,7 @@ fn run() -> error::Result<()> {
                         .multiple(true)
                         .required(false),
                 )
+                .arg(Arg::with_name("no-position").long("no-position"))
                 .arg(Arg::with_name("scope").long("scope").takes_value(true))
                 .arg(Arg::with_name("debug").long("debug").short("d"))
                 .arg(Arg::with_name("debug-graph").long("debug-graph").short("D"))
@@ -219,6 +220,7 @@ fn run() -> error::Result<()> {
     } else if let Some(matches) = matches.subcommand_matches("parse") {
         let debug = matches.is_present("debug");
         let debug_graph = matches.is_present("debug-graph");
+        let no_position = matches.is_present("no-position");
         let quiet = matches.is_present("quiet");
         let time = matches.is_present("time");
         let edits = matches
@@ -249,6 +251,7 @@ fn run() -> error::Result<()> {
                 debug,
                 debug_graph,
                 allow_cancellation,
+                no_position
             )?;
         }
         if has_error {

@@ -25,6 +25,7 @@ pub fn parse_file_at_path(
     debug: bool,
     debug_graph: bool,
     allow_cancellation: bool,
+    no_position: bool,
 ) -> Result<bool> {
     let mut _log_session = None;
     let mut parser = Parser::new();
@@ -116,20 +117,25 @@ pub fn parse_file_at_path(
                         for _ in 0..indent_level {
                             stdout.write(b"  ")?;
                         }
-                        let start = node.start_position();
-                        let end = node.end_position();
                         if let Some(field_name) = cursor.field_name() {
                             write!(&mut stdout, "{}: ", field_name)?;
                         }
-                        write!(
-                            &mut stdout,
-                            "({} [{}, {}] - [{}, {}]",
-                            node.kind(),
-                            start.row,
-                            start.column,
-                            end.row,
-                            end.column
-                        )?;
+                        if no_position {
+                            write!(&mut stdout, "({}", node.kind())?;
+                        } else {
+                            let start = node.start_position();
+                            let end = node.end_position();
+                            write!(
+                                &mut stdout,
+                                "({} [{}, {}] - [{}, {}]",
+                                node.kind(),
+                                start.row,
+                                start.column,
+                                end.row,
+                                end.column
+                            )?;
+                        }
+
                         needs_newline = true;
                     }
                     if cursor.goto_first_child() {
