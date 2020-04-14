@@ -37,7 +37,7 @@ declare module 'web-tree-sitter' {
 
     export type Logger = (
       message: string,
-      params: {[param: string]: string},
+      params: { [param: string]: string },
       type: "parse" | "lex"
     ) => void;
 
@@ -131,8 +131,27 @@ declare module 'web-tree-sitter' {
       readonly version: number;
       readonly fieldCount: number;
 
-      fieldNameForId(fieldId: number): string | null
-      fieldIdForName(fieldName: string): number | null
+      fieldNameForId(fieldId: number): string | null;
+      fieldIdForName(fieldName: string): number | null;
+      query(source: string): Query;
+    }
+    export interface Capture {
+      readonly name: string;
+      node: SyntaxNode;
+    }
+    export interface QueryMatch {
+      readonly pattern: number;
+      captures: Capture[];
+    }
+    export interface Query {
+      readonly captureNames: string[];
+      // readonly predicates;
+      // readonly setProperties;
+      // readonly assertedProperties;
+      // readonly refutedProperties;
+      delete(): void;
+      matches(node: SyntaxNode, startPosition: Point, endPosition: Point): QueryMatch[];
+      captures(node: SyntaxNode, startPosition: Point, endPosition: Point): Capture[];
     }
   }
 
