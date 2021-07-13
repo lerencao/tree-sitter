@@ -98,7 +98,11 @@ impl From<io::Error> for Error {
         Error::new(error.to_string())
     }
 }
-
+impl From<std::fmt::Error> for Error {
+    fn from(error: std::fmt::Error) -> Self {
+        Error::new(error.to_string())
+    }
+}
 impl From<glob::PatternError> for Error {
     fn from(error: glob::PatternError) -> Self {
         Error::new(error.to_string())

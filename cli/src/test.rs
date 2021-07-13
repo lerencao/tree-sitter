@@ -7,10 +7,11 @@ use regex::bytes::{Regex as ByteRegex, RegexBuilder as ByteRegexBuilder};
 use regex::Regex;
 use std::char;
 use std::fs;
-use std::io::{self, Write};
+use std::io::{self, Write as IoWrite};
+use std::fmt::Write;
 use std::path::Path;
 use std::str;
-use tree_sitter::{Language, LogType, Parser, Query};
+use tree_sitter::{Language, LogType, Parser, Query, Tree};
 
 lazy_static! {
     static ref HEADER_REGEX: ByteRegex = ByteRegexBuilder::new(r"^===+\r?\n([^=]*)\r?\n===+\r?\n")
@@ -143,6 +144,72 @@ pub fn print_diff(actual: &String, expected: &String) {
     println!("");
 }
 
+fn pretty_print(tree: &Tree, no_position: bool, write_field: bool) -> Result<String> {
+    let mut cursor = tree.walk();
+    let mut needs_newline = false;
+    let mut indent_level = 0;
+    let mut did_visit_children = false;
+    let mut output = String::new();
+    loop {
+        let node = cursor.node();
+        let is_named = node.is_named();
+        if did_visit_children {
+            if is_named {
+                write!(&mut output, ")")?;
+                needs_newline = true;
+            }
+            if cursor.goto_next_sibling() {
+                did_visit_children = false;
+            } else if cursor.goto_parent() {
+                did_visit_children = true;
+                indent_level -= 1;
+            } else {
+                break;
+            }
+        } else {
+            if is_named {
+                if needs_newline {
+                    write!(&mut output, "\n")?;
+                }
+                for _ in 0..indent_level {
+                    write!(&mut output, "  ")?;
+                }
+
+                if write_field {
+                    if let Some(field_name) = cursor.field_name() {
+                        write!(&mut output, "{}: ", field_name)?;
+                    }
+                }
+
+                if no_position {
+                    write!(&mut output, "({}", node.kind())?;
+                } else {
+                    let start = node.start_position();
+                    let end = node.end_position();
+                    write!(
+                        &mut output,
+                        "({} [{}, {}] - [{}, {}]",
+                        node.kind(),
+                        start.row,
+                        start.column,
+                        end.row,
+                        end.column
+                    )?;
+                }
+
+                needs_newline = true;
+            }
+            if cursor.goto_first_child() {
+                did_visit_children = false;
+                indent_level += 1;
+            } else {
+                did_visit_children = true;
+            }
+        }
+    }
+    Ok(output)
+}
+
 fn run_tests(
     parser: &mut Parser,
     test_entry: TestEntry,
@@ -163,10 +230,10 @@ fn run_tests(
                 }
             }
             let tree = parser.parse(&input, None).unwrap();
-            let mut actual = tree.root_node().to_sexp();
-            if !has_fields {
-                actual = strip_sexp_fields(actual);
-            }
+            let actual = pretty_print(&tree, true,has_fields)?;
+            // if !has_fields {
+            //     actual = strip_sexp_fields(actual);
+            // }
             for _ in 0..indent_level {
                 print!("  ");
             }
@@ -247,8 +314,9 @@ fn parse_test_content(name: String, content: String) -> TestEntry {
                     }
 
                     // Normalize the whitespace in the expected output.
-                    let output = WHITESPACE_REGEX.replace_all(output.trim(), " ").to_string();
-                    let output = output.replace(" )", ")");
+                    let output = output.trim().to_string();
+                    // let output = WHITESPACE_REGEX.replace_all(output.trim(), " ").to_string();
+                    // let output = output.replace(" )", ")");
 
                     // Identify if the expected output has fields indicated. If not, then
                     // fields will not be checked.
